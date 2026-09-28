@@ -1,9 +1,14 @@
 using Javideo.Worker.Services;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Javideo.Worker.Endpoints;
 
 public static class BackupEndpoints
 {
+    // Backups include cached images and can easily exceed Kestrel's 30 MB
+    // default request limit (and the 128 MB multipart section limit).
+    public const long MaxUploadBytes = 1024L * 1024 * 1024;
+
     public static void MapBackupEndpoints(this WebApplication app)
     {
         var g = app.MapGroup("/api/backup").WithTags("Backup");
@@ -26,19 +31,23 @@ public static class BackupEndpoints
         // Import a zip (multipart form upload, field name "file").
         g.MapPost("/import", async (HttpContext ctx, BackupService backup) =>
         {
-            var form = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
-            var file = form.Files.FirstOrDefault();
-            if (file == null || file.Length == 0)
-                return Results.BadRequest(new { ok = false, detail = "未提供文件" });
-
             var tempZip = Path.Combine(Path.GetTempPath(), $"javideo-import-{Guid.NewGuid():N}.zip");
             try
             {
+                var form = await ctx.Request.ReadFormAsync(ctx.RequestAborted);
+                var file = form.Files.GetFile("file");
+                if (file == null || file.Length == 0)
+                    return Results.BadRequest(new { ok = false, detail = "未提供文件" });
+
                 await using (var fs = File.Create(tempZip))
-                    await file.CopyToAsync(fs);
+                    await file.CopyToAsync(fs, ctx.RequestAborted);
 
                 backup.Import(tempZip);
                 return Results.Ok(new { ok = true, detail = "导入成功,请重启应用以生效" });
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.BadRequest(new { ok = false, detail = $"备份文件无效: {ex.Message}" });
             }
             catch (Exception ex)
             {
@@ -49,6 +58,6 @@ public static class BackupEndpoints
             {
                 if (File.Exists(tempZip)) File.Delete(tempZip);
             }
-        });
+        }).WithMetadata(new RequestSizeLimitAttribute(MaxUploadBytes));
     }
 }

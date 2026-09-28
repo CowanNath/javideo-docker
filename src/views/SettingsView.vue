@@ -36,6 +36,7 @@ async function doImport(e: Event) {
   const file = target.files?.[0]
   if (!file) return
   if (!await confirmDialog(t('importConfirm'), t('importData'))) { target.value = ''; return }
+  importOk.value = false
   importMsg.value = t('importing')
   try {
     const res = await backup.import(file)

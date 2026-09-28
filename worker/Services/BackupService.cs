@@ -6,11 +6,13 @@ namespace Javideo.Worker.Services;
 
 /// <summary>
 /// Backup / restore of all user data: the SQLite database, cached actor
-/// avatars (actors/) and cached preview images (previews/). Uses the standard
+/// avatars (actors/), preview images (previews/) and cloud library cache
+/// (cache/). Uses the standard
 /// library ZipFile — no third-party dependency.
 /// </summary>
 public sealed class BackupService
 {
+    private const string PendingDbName = "library.db.restore-pending";
     private readonly DbConnectionFactory _db;
     public BackupService(DbConnectionFactory db) => _db = db;
 
@@ -52,14 +54,18 @@ public sealed class BackupService
         var previewsDir = Path.Combine(_db.DataDir, "previews");
         AddDirectory(archive, previewsDir, "previews/");
 
-        // 4. Settings are inside library.db, no separate file needed.
+        // 4. Cloud-drive library metadata cache.
+        AddDirectory(archive, Path.Combine(_db.DataDir, "cache"), "cache/");
+
+        // 5. Settings are inside library.db, no separate file needed.
 
         return tempZip;
     }
 
-    /// <summary>Import a zip (uploaded by the user) by extracting its contents
-    /// into the data directory. Existing files are overwritten. The caller
-    /// should restart the worker afterwards so the DB reconnects.</summary>
+    /// <summary>Validate an uploaded backup and stage its database for the
+    /// next startup. Replacing a live WAL database can leave the old WAL file
+    /// attached to the new database, so the database swap must happen before
+    /// any connection opens after restart.</summary>
     public void Import(string zipPath)
     {
         if (!File.Exists(zipPath))
@@ -77,23 +83,80 @@ public sealed class BackupService
                 throw new InvalidDataException("备份文件无效:缺少 library.db");
             if (!IsSqliteFile(srcDb))
                 throw new InvalidDataException("备份文件无效:library.db 不是有效的 SQLite 数据库");
+            using (var source = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = srcDb,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString()))
+            {
+                source.Open();
+                using var check = source.CreateCommand();
+                check.CommandText = "PRAGMA integrity_check";
+                if (check.ExecuteScalar() as string != "ok")
+                    throw new InvalidDataException("library.db 完整性检查失败");
+            }
 
-            // Close pooled connections so no open handle corrupts the copy,
-            // and keep a one-shot backup of the current db — import overwrites
-            // everything, this is the only way back.
-            SqliteConnection.ClearAllPools();
-            if (File.Exists(_db.DbPath))
-                File.Copy(_db.DbPath, _db.DbPath + ".bak", overwrite: true);
-            File.Copy(srcDb, _db.DbPath, overwrite: true);
-
-            // Move actors/ and previews/ directories.
+            // Cache files may be copied while running. The database is only
+            // replaced on startup, after every old connection has closed.
             CopyDirOverwrite(Path.Combine(staging, "actors"), _db.AvatarsDir);
             CopyDirOverwrite(Path.Combine(staging, "previews"), Path.Combine(_db.DataDir, "previews"));
+            CopyDirOverwrite(Path.Combine(staging, "cache"), Path.Combine(_db.DataDir, "cache"));
+
+            var pending = Path.Combine(_db.DataDir, PendingDbName);
+            var pendingTemp = pending + ".tmp";
+            try
+            {
+                File.Copy(srcDb, pendingTemp, overwrite: true);
+                File.Move(pendingTemp, pending, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(pendingTemp)) File.Delete(pendingTemp);
+            }
         }
         finally
         {
             if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
         }
+    }
+
+    /// <summary>Apply the staged database before DbInitializer opens it.</summary>
+    public static void ApplyPendingRestore(DbConnectionFactory db)
+    {
+        var pending = Path.Combine(db.DataDir, PendingDbName);
+        if (!File.Exists(pending)) return;
+
+        // Preserve a consistent snapshot of the current database, including
+        // committed pages still in its WAL, for manual recovery if needed.
+        if (File.Exists(db.DbPath))
+        {
+            var backupTemp = db.DbPath + ".bak.tmp";
+            try
+            {
+                using (var current = db.Create())
+                using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder
+                {
+                    DataSource = backupTemp,
+                    Pooling = false
+                }.ToString()))
+                {
+                    current.Open();
+                    backup.Open();
+                    current.BackupDatabase(backup);
+                }
+                File.Move(backupTemp, db.DbPath + ".bak", overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(backupTemp)) File.Delete(backupTemp);
+            }
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Delete(db.DbPath + "-wal");
+        File.Delete(db.DbPath + "-shm");
+        File.Move(pending, db.DbPath, overwrite: true);
     }
 
     // --- helpers ---
@@ -109,12 +172,6 @@ public sealed class BackupService
             return "SQLite format 3\0"u8.SequenceEqual(header);
         }
         catch { return false; }
-    }
-
-    private static void AddIfExists(ZipArchive archive, string filePath, string entryName)
-    {
-        if (File.Exists(filePath))
-            archive.CreateEntryFromFile(filePath, entryName);
     }
 
     private static void AddDirectory(ZipArchive archive, string dir, string prefix)

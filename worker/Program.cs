@@ -6,6 +6,7 @@ using Javideo.Worker.Magnet;
 using Javideo.Worker.Services;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.Features;
 using Serilog;
 
 // ---- Logging ----
@@ -35,6 +36,11 @@ try
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
         p.WithOrigins(corsOrigins.ToArray()).AllowAnyMethod().AllowAnyHeader()));
+
+    // The backup endpoint has its own request size limit. Multipart parsing
+    // also has a separate, lower default limit for each uploaded file.
+    builder.Services.Configure<FormOptions>(o =>
+        o.MultipartBodyLengthLimit = BackupEndpoints.MaxUploadBytes);
 
     // ---- Singletons ----
     builder.Services.AddSingleton<DbConnectionFactory>();
@@ -76,7 +82,9 @@ try
     var app = builder.Build();
 
     // ---- Migrate / init DB on startup ----
-    await DbInitializer.InitializeAsync(app.Services.GetRequiredService<DbConnectionFactory>());
+    var dbFactory = app.Services.GetRequiredService<DbConnectionFactory>();
+    BackupService.ApplyPendingRestore(dbFactory);
+    await DbInitializer.InitializeAsync(dbFactory);
 
     // ---- CORS: allow the app's own origins ----
     app.UseCors();

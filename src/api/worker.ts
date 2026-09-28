@@ -364,7 +364,20 @@ export const backup = {
     const base = await getBaseUrl()
     const form = new FormData()
     form.append('file', file)
-    const resp = await fetch(`${base}/api/backup/import`, { method: 'POST', body: form })
-    return resp.json()
+    let resp: Response
+    try {
+      resp = await fetch(`${base}/api/backup/import`, { method: 'POST', body: form })
+    } catch {
+      throw new Error('上传连接中断，请检查网络连接及服务器或反向代理的上传大小和超时限制')
+    }
+    const body = await resp.text()
+    let result: { ok: boolean; detail: string } | null = null
+    try { result = JSON.parse(body) } catch { /* 413 responses may have no JSON body */ }
+    if (!resp.ok || !result?.ok) {
+      throw new Error(result?.detail || (resp.status === 413
+        ? '备份文件超过 1 GB 上传上限'
+        : `导入失败（HTTP ${resp.status}）`))
+    }
+    return result
   },
 }
