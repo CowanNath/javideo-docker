@@ -756,9 +756,7 @@ file static class TrailerHelper
             var tc = ctx.RequestServices.GetRequiredService<TrailerClient>();
             var url = await tc.FindTrailerUrlAsync(number);
             if (string.IsNullOrWhiteSpace(url)) return;
-            var bytes = await tc.DownloadAsync(url);
-            if (bytes != null)
-                await File.WriteAllBytesAsync(Path.Combine(folder, $"{number}-trailer.mp4"), bytes);
+            await tc.DownloadToFileAsync(url, Path.Combine(folder, $"{number}-trailer.mp4"), ctx.RequestAborted);
         }
         catch (Exception ex) { Serilog.Log.Warning(ex, "Trailer-only download failed for {Number}", number); }
     }

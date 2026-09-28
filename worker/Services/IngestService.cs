@@ -196,7 +196,7 @@ public sealed class IngestService
                         var tempTrailer = TrailerClient.FindExistingTemp(m.Number);
                         if (tempTrailer != null)
                         {
-                            File.Move(tempTrailer, destTrailer, overwrite: true);
+                            await TrailerClient.CopyTempToAsync(tempTrailer, destTrailer);
                         }
                         else
                         {
@@ -204,9 +204,7 @@ public sealed class IngestService
                             var trailerUrl = await tc.FindTrailerUrlAsync(m.Number);
                             if (!string.IsNullOrWhiteSpace(trailerUrl))
                             {
-                                var bytes = await tc.DownloadAsync(trailerUrl);
-                                if (bytes != null)
-                                    await File.WriteAllBytesAsync(destTrailer, bytes);
+                                await tc.DownloadToFileAsync(trailerUrl, destTrailer);
                             }
                         }
                     }

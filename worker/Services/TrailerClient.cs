@@ -78,16 +78,32 @@ public sealed class TrailerClient
     public TrailerClient(SettingsService settings) => _settings = settings;
 
     /// <summary>Temp dir for search-time trailer downloads (moved to library
-    /// folder on ingest, or deleted on next search).</summary>
+    /// folder on ingest, or deleted when stale).</summary>
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "javideo-trailers");
 
     public static string TempPathFor(string fanHao) =>
         Path.Combine(TempDir, $"{fanHao.ToUpperInvariant()}.mp4");
 
-    /// <summary>Delete old temp trailers (called before a new search).</summary>
-    public static void CleanupTemp()
+    /// <summary>Delete this search's old trailer and stale temp files without
+    /// removing another in-progress search's download.</summary>
+    public static void CleanupTemp(string fanHao)
     {
-        try { if (Directory.Exists(TempDir)) Directory.Delete(TempDir, recursive: true); } catch {}
+        if (!Directory.Exists(TempDir)) return;
+        try
+        {
+            foreach (var path in Directory.EnumerateFiles(TempDir, "*.mp4"))
+            {
+                if (path.Equals(TempPathFor(fanHao), StringComparison.OrdinalIgnoreCase) ||
+                    File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(-1))
+                {
+                    try { File.Delete(path); } catch { /* in use by another request */ }
+                }
+            }
+            foreach (var path in Directory.EnumerateFiles(TempDir, "*.tmp"))
+                if (File.GetLastWriteTimeUtc(path) < DateTime.UtcNow.AddDays(-1))
+                    try { File.Delete(path); } catch { /* in use */ }
+        }
+        catch { /* temp cleanup is best effort */ }
     }
 
     /// <summary>Find an existing temp trailer matching the fanHao case-insensitively,
@@ -108,11 +124,11 @@ public sealed class TrailerClient
 
     /// <summary>Build an HttpClient that uses the proxy from settings (if set),
     /// since DMM blocks non-JP IPs with 403. Supports optional username/password.</summary>
-    private HttpClient CreateClient(TimeSpan timeout)
+    private async Task<HttpClient> CreateClientAsync(TimeSpan timeout)
     {
-        var proxyStr = _settings.GetAsync(SettingsService.KeyProxy).GetAwaiter().GetResult()?.Trim();
-        var user = _settings.GetAsync("network.proxyUser").GetAwaiter().GetResult()?.Trim();
-        var pass = _settings.GetAsync("network.proxyPass").GetAwaiter().GetResult();
+        var proxyStr = (await _settings.GetAsync(SettingsService.KeyProxy))?.Trim();
+        var user = (await _settings.GetAsync("network.proxyUser"))?.Trim();
+        var pass = await _settings.GetAsync("network.proxyPass");
         var handler = new HttpClientHandler();
         if (!string.IsNullOrWhiteSpace(proxyStr) && Uri.TryCreate(proxyStr, UriKind.Absolute, out var proxyUri))
         {
@@ -140,14 +156,14 @@ public sealed class TrailerClient
         var candidates = GenerateUrls(label, number, suffix);
         Serilog.Log.Information("TrailerClient: trying {Count} URLs for {FanHao}", candidates.Count, fanHao);
 
+        using var http = await CreateClientAsync(TimeSpan.FromSeconds(15));
         foreach (var url in candidates)
         {
             for (int attempt = 1; attempt <= 2; attempt++)
             {
                 try
                 {
-                    using var http = CreateClient(TimeSpan.FromSeconds(15));
-                    var req = new HttpRequestMessage(HttpMethod.Get, url);
+                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
                     using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
                     Serilog.Log.Information("TrailerClient: {Url} -> {Status} (attempt {N})", url, (int)resp.StatusCode, attempt);
@@ -204,23 +220,68 @@ public sealed class TrailerClient
     private static string Url(string key, string sfx)
         => $"{DmmVideos}/{key[0]}/{key[..3]}/{key}/{key}{sfx}.mp4";
 
-    /// <summary>Download the trailer bytes via the proxy-aware client, with
-    /// up to 3 retries (network/proxy can be flaky).</summary>
-    public async Task<byte[]?> DownloadAsync(string url)
+    /// <summary>Stream a trailer to an adjacent temporary file, then rename
+    /// it into place only after a complete download. Avoids a video-sized
+    /// byte[] allocation and leaving partial .mp4 files after failures.</summary>
+    public async Task<bool> DownloadToFileAsync(string url, string destination, CancellationToken ct = default)
     {
+        using var http = await CreateClientAsync(Timeout.InfiniteTimeSpan);
         for (int attempt = 1; attempt <= 3; attempt++)
         {
+            var tempPath = destination + $".{Guid.NewGuid():N}.tmp";
             try
             {
-                using var http = CreateClient(TimeSpan.FromSeconds(90));
-                return await http.GetByteArrayAsync(url);
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(TimeSpan.FromSeconds(90));
+                using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+                resp.EnsureSuccessStatusCode();
+                await using (var source = await resp.Content.ReadAsStreamAsync(timeout.Token))
+                await using (var file = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write,
+                    FileShare.None, 81920, FileOptions.Asynchronous))
+                {
+                    await source.CopyToAsync(file, timeout.Token);
+                    await file.FlushAsync(timeout.Token);
+                    if (file.Length == 0) throw new IOException("预告片内容为空");
+                }
+                File.Move(tempPath, destination, overwrite: true);
+                return true;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 Serilog.Log.Warning(ex, "Trailer download attempt {N}/3 failed for {Url}", attempt, url);
-                if (attempt < 3) await Task.Delay(1000 * attempt); // backoff 1s, 2s
+                if (attempt < 3) await Task.Delay(1000 * attempt, ct); // backoff 1s, 2s
+            }
+            finally
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
             }
         }
-        return null;
+        return false;
+    }
+
+    /// <summary>Copy a search-time download into the destination filesystem.
+    /// A rename across /tmp and /data (or a bind mount) fails with EXDEV.</summary>
+    public static async Task CopyTempToAsync(string sourcePath, string destination, CancellationToken ct = default)
+    {
+        var tempPath = destination + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 81920, FileOptions.Asynchronous))
+            await using (var file = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 81920, FileOptions.Asynchronous))
+            {
+                await source.CopyToAsync(file, ct);
+                await file.FlushAsync(ct);
+                if (file.Length == 0) throw new IOException("预告片内容为空");
+            }
+            File.Move(tempPath, destination, overwrite: true);
+            File.Delete(sourcePath);
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+        }
     }
 }

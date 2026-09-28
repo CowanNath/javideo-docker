@@ -59,15 +59,20 @@ public static class MetaTubeEndpoints
 
         // Find a trailer URL for a 番号 (DMM free preview via TrailerClient).
         // Used by the search page to show a trailer without ingesting first.
-        g.MapGet("/trailer/{number}", async (string number, TrailerClient tc, SettingsService settings) =>
+        g.MapGet("/trailer/{number}", async (string number, TrailerClient tc, SettingsService settings, HttpContext ctx) =>
         {
             if (!IsSafeNumber(number)) return Results.BadRequest();
             var on = (await settings.GetAsync(SettingsService.KeyScrapeTrailer))?.Trim();
             if (!string.Equals(on, "true", StringComparison.OrdinalIgnoreCase))
                 return Results.Ok(new { ok = false, url = (string?)null });
 
-            // Clean up old temp trailers from previous searches.
-            TrailerClient.CleanupTemp();
+            // Reuse a recent download instead of probing DMM on every search.
+            var cached = TrailerClient.FindExistingTemp(number);
+            if (cached != null && File.GetLastWriteTimeUtc(cached) > DateTime.UtcNow.AddDays(-1))
+                return Results.Ok(new { ok = true, url = $"/api/metatube/trailer-temp/{number}" });
+
+            // Clean up this number's stale file and old abandoned downloads.
+            TrailerClient.CleanupTemp(number);
 
             try
             {
@@ -75,11 +80,10 @@ public static class MetaTubeEndpoints
                 if (url == null) return Results.Ok(new { ok = false, url = (string?)null });
 
                 // Download to temp dir (only once — ingest will move it, not re-download).
-                var bytes = await tc.DownloadAsync(url);
-                if (bytes == null || bytes.Length == 0) return Results.Ok(new { ok = false, url = (string?)null });
-
-                Directory.CreateDirectory(Path.GetDirectoryName(TrailerClient.TempPathFor(number))!);
-                await File.WriteAllBytesAsync(TrailerClient.TempPathFor(number), bytes);
+                var path = TrailerClient.TempPathFor(number);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                if (!await tc.DownloadToFileAsync(url, path, ctx.RequestAborted))
+                    return Results.Ok(new { ok = false, url = (string?)null });
 
                 // Return the temp-playback URL (served by the endpoint below).
                 return Results.Ok(new { ok = true, url = $"/api/metatube/trailer-temp/{number}" });

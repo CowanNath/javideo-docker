@@ -6,8 +6,8 @@ public static class ScanEndpoints
 {
     public static void MapScanEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/libraries/{id:long}/scan", async (long id, Scanner scanner) =>
-            Results.Ok(await scanner.ScanLibraryAsync(id)))
+        app.MapPost("/api/libraries/{id:long}/scan", async (long id, Scanner scanner, HttpContext ctx) =>
+            Results.Ok(await scanner.ScanLibraryAsync(id, ctx.RequestAborted)))
            .WithTags("Scan");
     }
 }

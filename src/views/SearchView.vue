@@ -211,7 +211,10 @@ async function search() {
       })
       .catch(() => { if (seq === searchSeq) { trailerUrl.value = store.trailerUrl = ''; stepTrailer.value = -1 } })
 
-  await Promise.allSettled([scrapeP, magP, trailerP])
+  // DMM can take much longer than metadata/magnets. Keep updating the trailer
+  // step when it finishes, but let the search result become usable first.
+  void trailerP
+  await Promise.allSettled([scrapeP, magP])
   if (seq !== searchSeq) return
   scraping.value = false
   magLoading.value = false

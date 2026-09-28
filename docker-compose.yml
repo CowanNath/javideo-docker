@@ -19,6 +19,9 @@ services:
       # 媒体库：把宿主机视频目录挂进容器（左侧宿主机路径按需修改），
       # 然后在网页「设置 → 媒体库」里添加容器内路径，例如 /media/movies
       - ./media:/media
+      # CloudDrive2 / 115 示例：按实际宿主机路径映射，媒体库目录填 /media/115。
+      # 如需把字幕保存到视频同目录，去掉末尾的 :ro（需要 CD2 支持写入）。
+      # - /vol1/1000/CloudDrive/115Video/115open:/media/115:ro
 
 volumes:
   javideo-data:

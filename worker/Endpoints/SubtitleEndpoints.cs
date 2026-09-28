@@ -30,24 +30,30 @@ public static class SubtitleEndpoints
         {
             await using var c = db.Create();
             await c.OpenAsync();
-            var row = await c.QueryFirstOrDefaultAsync<(string? Gcid, string? Folder, string? Number, int? Runtime, string? Source)>(
-                "SELECT gcid Gcid, folder_path Folder, number Number, runtime_minutes Runtime, source_path Source FROM movies WHERE id=@id", new { id });
+            var row = await c.QueryFirstOrDefaultAsync<(string? Gcid, string? Folder, string? Number, int? Runtime, string? Source, long CacheLocal)>(
+                "SELECT m.gcid Gcid, m.folder_path Folder, m.number Number, m.runtime_minutes Runtime, " +
+                "m.source_path Source, COALESCE(l.cache_local, 0) CacheLocal " +
+                "FROM movies m LEFT JOIN libraries l ON l.id=m.library_id WHERE m.id=@id", new { id });
             if (row.Number == null)
                 return Results.NotFound(new { ok = false, gcid = "", subtitles = Array.Empty<SubtitleItem>(), detail = "影片不存在" });
 
-            var video = FindVideoFile(row.Folder)
-                        ?? (!string.IsNullOrWhiteSpace(row.Source) && File.Exists(row.Source) ? row.Source : null);
+            // source_path belongs to a cloud-drive library. A File.Exists stat
+            // here can wake a remote mount just to look up subtitles by name.
+            var video = !string.IsNullOrWhiteSpace(row.Source)
+                ? row.Source
+                : FindVideoFile(row.Folder);
             if (video == null)
                 return Results.Ok(new { ok = false, gcid = "", subtitles = Array.Empty<SubtitleItem>(), detail = "未找到视频文件" });
 
+            var remoteVideo = row.CacheLocal == 1 || !string.IsNullOrWhiteSpace(row.Source);
             double? baseDurationSec = null;
-            if (MediaDuration.TryGetSeconds(video, out var real))
+            if (!remoteVideo && MediaDuration.TryGetSeconds(video, out var real))
                 baseDurationSec = real;
             else if (row.Runtime is > 0)
                 baseDurationSec = row.Runtime.Value * 60.0;
 
             var gcid = row.Gcid;
-            if (string.IsNullOrWhiteSpace(gcid) && IsLocalDrive(video))
+            if (string.IsNullOrWhiteSpace(gcid) && !remoteVideo && IsLocalDrive(video))
             {
                 try { gcid = await Gcid.ComputeAsync(video); }
                 catch (Exception ex) { return Results.Ok(new { ok = false, gcid = "", subtitles = Array.Empty<SubtitleItem>(), detail = "GCID 计算失败: " + ex.Message }); }
@@ -154,8 +160,8 @@ public static class SubtitleEndpoints
     /// fixed drives, never across a network/cloud mount.</summary>
     private static bool IsLocalDrive(string path)
     {
-        // Linux (Docker): bind-mounted volumes don't report DriveType.Fixed
-        // reliably — treat every path as local so GCID still gets computed.
+        // The cache_local/source_path check above handles cloud-mounted videos;
+        // Linux bind mounts do not reliably expose their underlying drive type.
         if (!OperatingSystem.IsWindows()) return true;
         try
         {
