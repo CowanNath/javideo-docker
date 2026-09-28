@@ -1,0 +1,28 @@
+{
+  "name": "javideo-docker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Javideo web edition — the .NET worker serves the SPA; deployed as a Docker container.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "worker": "dotnet run --project worker"
+  },
+  "dependencies": {
+    "pinia": "^2.2.4",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@iconify-json/carbon": "^1.2.27",
+    "@types/node": "^26.0.1",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "@vue/tsconfig": "^0.5.1",
+    "typescript": "^5.6.3",
+    "unocss": "^0.63.6",
+    "vite": "^5.4.10",
+    "vue-tsc": "^2.1.10"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+worker/bin/
+worker/obj/
+worker/wwwroot/
+.smoke/
+*.user
+media/
+data/

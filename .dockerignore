@@ -1,0 +1,13 @@
+node_modules
+dist
+worker/bin
+worker/obj
+worker/wwwroot
+.git
+.gitignore
+media
+data
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore

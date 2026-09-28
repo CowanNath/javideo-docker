@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Dark is the default theme; paint the background before CSS arrives to
+         avoid a white flash on startup. -->
+    <meta name="color-scheme" content="dark light" />
+    <title>Javideo</title>
+  </head>
+  <body>
+    <script>
+      // Paint the startup background in the stored theme before CSS loads,
+      // so neither theme sees a flash of the wrong color.
+      document.documentElement.style.background =
+        localStorage.getItem('javideo.theme') === 'light' ? '#f7f8fa' : '#0f1011'
+    </script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

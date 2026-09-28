@@ -1,0 +1,24 @@
+services:
+  javideo:
+    build: .
+    image: javideo:web
+    container_name: javideo
+    restart: unless-stopped
+    ports:
+      # 浏览器访问 http://<宿主机IP>:8080
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      # 数据目录固定为 /data（library.db、头像/预览图缓存、网盘库元数据缓存）
+      # Javideo__DataDir: /data
+      # 额外允许跨域的来源（逗号分隔，常规部署无需配置）
+      # Javideo__CorsOrigins: http://192.168.1.10:3000
+    volumes:
+      # 数据卷：数据库 + 缓存，升级镜像不丢数据
+      - javideo-data:/data
+      # 媒体库：把宿主机视频目录挂进容器（左侧宿主机路径按需修改），
+      # 然后在网页「设置 → 媒体库」里添加容器内路径，例如 /media/movies
+      - ./media:/media
+
+volumes:
+  javideo-data:
