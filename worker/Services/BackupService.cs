@@ -6,8 +6,8 @@ namespace Javideo.Worker.Services;
 
 /// <summary>
 /// Backup / restore of all user data: the SQLite database, cached actor
-/// avatars (actors/), preview images (previews/) and cloud library cache
-/// (cache/). Uses the standard
+/// avatars (actors/), preview images (previews/), cover cache (covers/) and
+/// cloud library cache (cache/). Uses the standard
 /// library ZipFile — no third-party dependency.
 /// </summary>
 public sealed class BackupService
@@ -57,7 +57,11 @@ public sealed class BackupService
         // 4. Cloud-drive library metadata cache.
         AddDirectory(archive, Path.Combine(_db.DataDir, "cache"), "cache/");
 
-        // 5. Settings are inside library.db, no separate file needed.
+        // 5. Covers fetched for libraries whose original media paths are not
+        // available inside this container.
+        AddDirectory(archive, Path.Combine(_db.DataDir, "covers"), "covers/");
+
+        // 6. Settings are inside library.db, no separate file needed.
 
         return tempZip;
     }
@@ -102,6 +106,7 @@ public sealed class BackupService
             CopyDirOverwrite(Path.Combine(staging, "actors"), _db.AvatarsDir);
             CopyDirOverwrite(Path.Combine(staging, "previews"), Path.Combine(_db.DataDir, "previews"));
             CopyDirOverwrite(Path.Combine(staging, "cache"), Path.Combine(_db.DataDir, "cache"));
+            CopyDirOverwrite(Path.Combine(staging, "covers"), Path.Combine(_db.DataDir, "covers"));
 
             var pending = Path.Combine(_db.DataDir, PendingDbName);
             var pendingTemp = pending + ".tmp";

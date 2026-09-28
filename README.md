@@ -50,7 +50,7 @@ http://localhost:8080
 
 ## 数据与备份
 
-- 所有可变状态都在 `/data`（SQLite `library.db`、`actors/` 头像、`previews/` 预览图、`cache/` 网盘库元数据）。compose 用命名卷 `javideo-data` 持久化，升级镜像不丢数据。
+- 所有可变状态都在 `/data`（SQLite `library.db`、`actors/` 头像、`previews/` 预览图、`covers/` 远程封面缓存、`cache/` 网盘库元数据）。compose 用命名卷 `javideo-data` 持久化，升级镜像不丢数据。
 - 定期备份：网页「设置 → 导入导出 → 导出」下载 zip 即可。
 - 导入支持最大 1 GB 的 ZIP。上传成功后重启容器，数据库会在启动时恢复；恢复前的数据库快照保存在 `/data/library.db.bak`。
 - 如果大文件导入在浏览器网络面板中没有响应码，先确认容器已用新代码重建；若 8085 等访问入口经过反向代理，还需检查代理的请求体大小和上传超时限制。

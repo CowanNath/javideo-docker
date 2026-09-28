@@ -243,8 +243,15 @@ public static class MovieEndpoints
         // Serve the local poster/thumb image from the movie folder.
         // Falls back to proxying the remote URL (from DB) so the webview never
         // hits dmm directly (avoids Tracking Prevention blocking).
-        g.MapGet("/{id:long}/image/{type}", async (long id, string type, DbConnectionFactory db) =>
+        g.MapGet("/{id:long}/image/{type}", async (long id, string type, DbConnectionFactory db, HttpContext ctx) =>
         {
+            if (type is not ("poster" or "thumb")) return Results.NotFound();
+            IResult LocalImage(string path)
+            {
+                ctx.Response.Headers.CacheControl = "private, max-age=3600";
+                return Results.File(path, "image/jpeg");
+            }
+
             await using var c = db.Create();
             await c.OpenAsync();
             var row = await c.QueryFirstOrDefaultAsync<(string? Folder, string Number, string? CoverUrl, string? ThumbUrl)>(
@@ -258,28 +265,61 @@ public static class MovieEndpoints
             if (row.Folder != null)
             {
                 var path = Path.Combine(row.Folder, $"{row.Number}{suffix}");
-                if (File.Exists(path)) return Results.File(path, "image/jpeg");
+                if (File.Exists(path)) return LocalImage(path);
                 var other = Path.Combine(row.Folder, $"{row.Number}{otherSuffix}");
-                if (File.Exists(other)) return Results.File(other, "image/jpeg");
+                if (File.Exists(other)) return LocalImage(other);
             }
 
             // 2. Fall back to proxying the remote URL via the worker (avoids dmm
             //    tracking-prevention in the webview). Try both cover and thumb URLs.
-            var remoteUrl = type == "poster"
-                ? (row.CoverUrl ?? row.ThumbUrl)
-                : (row.ThumbUrl ?? row.CoverUrl);
-            if (string.IsNullOrWhiteSpace(remoteUrl)) return Results.NotFound();
+            var remoteUrls = (type == "poster"
+                ? new[] { row.CoverUrl, row.ThumbUrl }
+                : new[] { row.ThumbUrl, row.CoverUrl })
+                .OfType<string>().Where(u => !string.IsNullOrWhiteSpace(u))
+                .Distinct().ToArray();
+            if (remoteUrls.Length == 0) return Results.NotFound();
+            // Imported desktop backups can contain Windows folder paths that
+            // are unavailable in Docker. Keep the remote fallback on /data so
+            // subsequent visits do not download every cover again.
+            var urlHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(string.Join('\n', remoteUrls))))[..16];
+            var cacheDir = Path.Combine(db.DataDir, "covers");
+            var cachePath = Path.Combine(cacheDir, $"{id}-{type}-{urlHash}.jpg");
+            if (File.Exists(cachePath)) return LocalImage(cachePath);
             try
             {
                 // Try the URL as-is first, then without ?auto=false (some providers don't support it).
-                foreach (var tryUrl in new[] { remoteUrl, remoteUrl.Split('?')[0] })
+                foreach (var remoteUrl in remoteUrls)
                 {
-                    try
+                    foreach (var tryUrl in new[] { remoteUrl, remoteUrl.Split('?')[0] })
                     {
-                        var imgBytes = await ImageHttp.GetByteArrayAsync(tryUrl);
-                        if (imgBytes.Length > 0) return Results.File(imgBytes, "image/jpeg");
+                        try
+                        {
+                            var imgBytes = await ImageHttp.GetByteArrayAsync(tryUrl);
+                            if (imgBytes.Length > 0)
+                            {
+                                var tempPath = cachePath + $".{Guid.NewGuid():N}.tmp";
+                                try
+                                {
+                                    Directory.CreateDirectory(cacheDir);
+                                    await File.WriteAllBytesAsync(tempPath, imgBytes);
+                                    File.Move(tempPath, cachePath, overwrite: true);
+                                    return LocalImage(cachePath);
+                                }
+                                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                                {
+                                    // Cache failures must not hide a fetched image.
+                                    return Results.File(imgBytes, "image/jpeg");
+                                }
+                                finally
+                                {
+                                    try { if (File.Exists(tempPath)) File.Delete(tempPath); }
+                                    catch { /* best-effort cleanup */ }
+                                }
+                            }
+                        }
+                        catch { /* try the next URL */ }
                     }
-                    catch { /* try next variant */ }
                 }
                 return Results.NotFound();
             }

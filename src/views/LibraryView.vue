@@ -325,7 +325,7 @@ watch(() => route.params.id, () => {
       <p class="text-xs text-muted">{{ t('noMoviesHint') }}</p>
     </div>
     <div v-else class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));">
-      <MovieCard v-for="m in sortedMovies" :key="m.id" :movie="m" @click="openDetail(m)" @contextmenu="(e: MouseEvent) => onCardContextMenu(e, m)" />
+      <MovieCard v-for="(m, i) in sortedMovies" :key="m.id" :movie="m" :eager="i < 12" @click="openDetail(m)" @contextmenu="(e: MouseEvent) => onCardContextMenu(e, m)" />
     </div>
 
     <!-- Reusable detail drawer -->

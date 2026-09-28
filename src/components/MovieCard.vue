@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Movie } from '@/types'
 import { useFavoritesStore } from '@/stores/favorites'
 import { t } from '@/utils/i18n'
 
-const props = defineProps<{ movie: Movie; size?: 'sm' | 'md' | 'lg' }>()
+const props = defineProps<{ movie: Movie; size?: 'sm' | 'md' | 'lg'; eager?: boolean }>()
 const emit = defineEmits<{ click: [movie: Movie] }>()
 
 const favs = useFavoritesStore()
@@ -18,6 +18,16 @@ const isFav = computed(() =>
   props.movie.id != null && favs.movieIds.includes(props.movie.id)
 )
 
+// The grid only needs the smaller thumbnail. Keep a stable placeholder while
+// it downloads, then fade the decoded image in without changing card layout.
+const imageUrl = computed(() => props.movie.thumbUrl || props.movie.coverUrl || '')
+const imageReady = ref(false)
+const imageFailed = ref(false)
+watch(imageUrl, () => {
+  imageReady.value = false
+  imageFailed.value = false
+})
+
 async function toggleFav(e: Event) {
   e.stopPropagation()
   if (props.movie.id != null) favs.toggle('movie', props.movie.id)
@@ -29,17 +39,21 @@ async function toggleFav(e: Event) {
        width, so cards stretch uniformly in every grid. -->
   <div class="card group cursor-pointer w-full" @click="emit('click', movie)">
     <div class="aspect-[2/3] bg-surface2 overflow-hidden relative">
-      <img
-        v-if="movie.coverUrl || movie.thumbUrl"
-        :src="movie.coverUrl || movie.thumbUrl || ''"
-        :alt="movie.number"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        loading="lazy"
-        referrerpolicy="no-referrer"
-      />
-      <div v-else class="w-full h-full flex items-center justify-center text-muted">
-        <span class="i-carbon-image text-3xl" />
+      <div v-if="!imageReady" class="absolute inset-0 flex items-center justify-center text-muted">
+        <span class="i-carbon-image text-3xl opacity-40" />
       </div>
+      <img
+        v-if="imageUrl && !imageFailed"
+        :src="imageUrl"
+        :alt="movie.number"
+        class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-[opacity,transform] duration-300"
+        :class="imageReady ? 'opacity-100' : 'opacity-0'"
+        :loading="eager ? 'eager' : 'lazy'"
+        decoding="async"
+        referrerpolicy="no-referrer"
+        @load="imageReady = true"
+        @error="imageFailed = true"
+      />
 
       <!-- 番号 badge -->
       <span
