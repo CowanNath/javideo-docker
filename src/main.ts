@@ -25,8 +25,17 @@ function showError(msg: string) {
   console.error('[javideo]', msg)
 }
 
-window.addEventListener('error', (e) => showError(e.message + (e.error ? '\n' + e.error.stack : '')))
-window.addEventListener('unhandledrejection', (e) => showError('Promise 未捕获: ' + e.reason))
+// Browser extensions can inject userscripts into the page. Their exceptions
+// arrive at these global listeners but should not appear as Javideo errors.
+const extensionSource = /(?:chrome|moz|safari-web)-extension:\/\//i
+window.addEventListener('error', (e) => {
+  if (extensionSource.test(`${e.filename}\n${e.error?.stack ?? ''}`)) return
+  showError(e.message + (e.error ? '\n' + e.error.stack : ''))
+})
+window.addEventListener('unhandledrejection', (e) => {
+  if (extensionSource.test(String(e.reason?.stack ?? e.reason))) return
+  showError('Promise 未捕获: ' + e.reason)
+})
 
 try {
   const app = createApp(App)
