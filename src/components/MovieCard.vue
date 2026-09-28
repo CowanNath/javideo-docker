@@ -18,9 +18,16 @@ const isFav = computed(() =>
   props.movie.id != null && favs.movieIds.includes(props.movie.id)
 )
 
-// The grid only needs the smaller thumbnail. Keep a stable placeholder while
-// it downloads, then fade the decoded image in without changing card layout.
-const imageUrl = computed(() => props.movie.thumbUrl || props.movie.coverUrl || '')
+// Cards are portrait-shaped, so use the full poster. Thumbnails are commonly
+// landscape stills and get cropped incorrectly in this layout.
+const imageUrl = computed(() => {
+  const cover = props.movie.coverUrl || ''
+  // The poster endpoint previously cached thumbnail fallbacks for an hour.
+  // Version its browser URL so corrected posters appear immediately.
+  return cover.startsWith('/api/movies/') && cover.includes('/image/poster')
+    ? `${cover}?v=portrait-2`
+    : cover
+})
 const imageReady = ref(false)
 const imageFailed = ref(false)
 watch(imageUrl, () => {

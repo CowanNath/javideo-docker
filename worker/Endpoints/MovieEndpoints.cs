@@ -258,22 +258,26 @@ public static class MovieEndpoints
                 "SELECT folder_path Folder, number Number, cover_url CoverUrl, thumb_url ThumbUrl FROM movies WHERE id=@id", new { id });
             if (row.Number == null) return Results.NotFound();
 
-            // 1. Try local file first; if only the other image was downloaded,
-            //    serve that rather than a 404.
+            // 1. Use the matching local image. A landscape thumbnail must not
+            //    stand in for a portrait poster on movie cards.
             var suffix = type == "poster" ? "-poster.jpg" : "-thumb.jpg";
             var otherSuffix = type == "poster" ? "-thumb.jpg" : "-poster.jpg";
             if (row.Folder != null)
             {
                 var path = Path.Combine(row.Folder, $"{row.Number}{suffix}");
                 if (File.Exists(path)) return LocalImage(path);
-                var other = Path.Combine(row.Folder, $"{row.Number}{otherSuffix}");
-                if (File.Exists(other)) return LocalImage(other);
+                if (type == "thumb")
+                {
+                    var other = Path.Combine(row.Folder, $"{row.Number}{otherSuffix}");
+                    if (File.Exists(other)) return LocalImage(other);
+                }
             }
 
             // 2. Fall back to proxying the remote URL via the worker (avoids dmm
-            //    tracking-prevention in the webview). Try both cover and thumb URLs.
+            //    tracking-prevention in the webview). Only the thumbnail endpoint
+            //    may fall back to the poster; the reverse changes the aspect ratio.
             var remoteUrls = (type == "poster"
-                ? new[] { row.CoverUrl, row.ThumbUrl }
+                ? new[] { row.CoverUrl }
                 : new[] { row.ThumbUrl, row.CoverUrl })
                 .OfType<string>().Where(u => !string.IsNullOrWhiteSpace(u))
                 .Distinct().ToArray();
