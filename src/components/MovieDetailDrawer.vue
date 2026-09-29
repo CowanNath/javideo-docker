@@ -380,7 +380,7 @@ function formatDiff(sec: number): string {
       @mousedown="backdrop.onMouseDown"
       @mouseup="backdrop.onMouseUp"
     >
-      <div class="bg-surface border-l border-border w-[420px] max-w-[90vw] overflow-y-auto shadow-lg">
+      <div class="bg-surface border-l border-border w-full sm:w-[420px] sm:max-w-[90vw] overflow-y-auto shadow-lg">
         <template v-if="loading">
           <div class="p-12 text-center text-muted text-sm">{{ ti('loading') }}</div>
         </template>
@@ -484,8 +484,8 @@ function formatDiff(sec: number): string {
                     </span>
                     <span class="text-[12px]">{{ a.name }}</span>
                   </button>
-                  <!-- edit / remove, visible on chip hover -->
-                  <span class="hidden group-hover:inline-flex items-center gap-0.5">
+                  <!-- edit / remove, visible on chip hover (always on touch) -->
+                  <span class="hidden group-hover:inline-flex touch-show items-center gap-0.5">
                     <button class="w-4 h-4 rounded flex items-center justify-center text-muted hover:text-primary" :title="ti('renameActor')" :aria-label="ti('renameActor')" @click.stop="startActorRename(a)">
                       <span class="i-carbon-edit text-[10px]" />
                     </button>
@@ -567,7 +567,7 @@ function formatDiff(sec: number): string {
     <Teleport to="body">
       <div
         v-if="previewIdx != null"
-        class="fixed inset-0 z-[70] flex items-center justify-center p-8"
+        class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-8"
         style="background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);"
         @click="previewIdx = null"
       >
@@ -618,7 +618,7 @@ function formatDiff(sec: number): string {
   <Teleport to="body">
     <div
       v-if="showPlayer"
-      class="fixed inset-0 z-[80] flex items-center justify-center p-8"
+      class="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-8"
       style="background: rgba(0,0,0,0.9); backdrop-filter: blur(6px);"
       @click.self="showPlayer = false"
     >
@@ -653,7 +653,7 @@ function formatDiff(sec: number): string {
   <Teleport to="body">
     <div
       v-if="showSubtitles"
-      class="fixed inset-0 z-[75] flex items-center justify-center p-8"
+      class="fixed inset-0 z-[75] flex items-center justify-center p-4 sm:p-8"
       style="background: rgba(0,0,0,0.7); backdrop-filter: blur(3px);"
       @click.self="showSubtitles = false"
     >
@@ -712,7 +712,7 @@ function formatDiff(sec: number): string {
   <Teleport to="body">
     <div
       v-if="showRescrapePicker"
-      class="fixed inset-0 z-[75] flex items-center justify-center p-8"
+      class="fixed inset-0 z-[75] flex items-center justify-center p-4 sm:p-8"
       style="background: rgba(0,0,0,0.7); backdrop-filter: blur(3px);"
       @click.self="showRescrapePicker = false"
     >

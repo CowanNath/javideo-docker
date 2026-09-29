@@ -146,7 +146,7 @@ load()
 </script>
 
 <template>
-  <div class="p-8 max-w-5xl mx-auto">
+  <div class="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
     <div class="mb-6">
       <h1 class="text-2xl font-bold tracking-tight mb-1">{{ ti('favorites') }}</h1>
       <p class="text-muted text-sm">{{ ti('favoritesSubtitle') }}</p>
@@ -195,16 +195,16 @@ load()
     <div v-else-if="!displayed.length" class="text-muted text-sm py-8 text-center">{{ ti('noMatch') }}</div>
 
     <!-- Movies: same card grid as the library page -->
-    <div v-else-if="tab === 'movie'" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));">
+    <div v-else-if="tab === 'movie'" class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(176px, 42vw), 1fr));">
       <MovieCard v-for="it in displayed" :key="it.id" :movie="asMovie(it)" @click="go(it)" />
     </div>
 
     <!-- Actors: same card style as the Actors page -->
-    <div v-else-if="tab === 'actor'" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+    <div v-else-if="tab === 'actor'" class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(140px, 40vw), 1fr));">
       <div v-for="it in displayed" :key="it.id" class="card cursor-pointer text-center p-4 group relative" @click="go(it)">
         <button
           class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
-          :class="favs.actorIds.includes(it.targetId) ? '!text-red-500' : 'text-muted opacity-0 group-hover:opacity-100'"
+          :class="favs.actorIds.includes(it.targetId) ? '!text-red-500' : 'text-muted opacity-0 group-hover:opacity-100 hover-reveal'"
           style="background: var(--surface-3);"
           :title="ti('unfav')" :aria-label="ti('unfav')"
           @click.stop="unfavFromCard(it)"

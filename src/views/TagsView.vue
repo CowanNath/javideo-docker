@@ -66,14 +66,14 @@ const cats: { key: typeof category.value; label: string; icon: string }[] = [
 </script>
 
 <template>
-  <div class="p-8 max-w-5xl mx-auto">
+  <div class="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
     <div class="mb-6">
       <h1 class="text-2xl font-bold tracking-tight mb-1">{{ ti('tagTitle') }}</h1>
       <p class="text-muted text-sm">{{ ti('tagSubtitle') }}</p>
     </div>
 
-    <!-- Category tabs -->
-    <div class="flex gap-1 mb-6 p-1 rounded-lg bg-surface2 w-fit">
+    <!-- Category tabs (scroll horizontally when the four don't fit) -->
+    <div class="flex gap-1 mb-6 p-1 rounded-lg bg-surface2 max-w-full overflow-x-auto">
       <button
         v-for="c in cats"
         :key="c.key"

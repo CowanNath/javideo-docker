@@ -10,7 +10,7 @@ const dict = {
     // sidebar
     search: '搜索', favorites: '收藏', actors: '演员', tags: '标签', settings: '设置',
     libraries: '媒体库', noLibraries: '暂无媒体库\n去「设置」新建一个',
-    workerRunning: 'Worker 运行中', collapse: '收起',
+    workerRunning: 'Worker 运行中', collapse: '收起', menu: '菜单',
     // search
     searchPlaceholder: '例如：SSIS-001',
     searchBtn: '搜索', searching: '搜索中…',
@@ -149,7 +149,7 @@ const dict = {
   en: {
     search: 'Search', favorites: 'Favorites', actors: 'Actors', tags: 'Tags', settings: 'Settings',
     libraries: 'Libraries', noLibraries: 'No library yet\nCreate one in Settings',
-    workerRunning: 'Worker running', collapse: 'Collapse',
+    workerRunning: 'Worker running', collapse: 'Collapse', menu: 'Menu',
     searchPlaceholder: 'e.g. SSIS-001',
     searchBtn: 'Search', searching: 'Searching…',
     stepScrape: 'Metadata', stepMagnet: 'Magnet', stepTrailer: 'Trailer', stepTranslate: 'Translate',

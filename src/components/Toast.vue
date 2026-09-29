@@ -7,7 +7,7 @@ import { toastMsg, toastType } from '@/utils/toast'
     <Transition name="toast">
       <div
         v-if="toastMsg"
-        class="fixed top-6 right-6 z-[100] px-4 py-3 rounded-lg shadow-lg text-[14px] font-medium flex items-center gap-2"
+        class="fixed top-6 right-6 max-md:top-[72px] max-md:left-4 max-md:right-4 z-[100] px-4 py-3 rounded-lg shadow-lg text-[14px] font-medium flex items-center gap-2"
         :style="{
           background: toastType === 'error' ? '#dc2626' : toastType === 'success' ? '#16a34a' : 'var(--primary)',
           color: '#fff',

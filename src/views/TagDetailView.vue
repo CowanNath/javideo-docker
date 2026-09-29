@@ -40,12 +40,12 @@ watch(() => route.params.id, load)
 </script>
 
 <template>
-  <div class="p-8">
+  <div class="p-4 sm:p-6 md:p-8">
     <button class="btn-ghost mb-4" @click="router.push('/tags')">
       <span class="i-carbon-arrow-left" /> {{ t('backToTags') }}
     </button>
 
-    <div class="flex items-center gap-2 mb-6">
+    <div class="flex flex-wrap items-center gap-2 mb-6">
       <span class="i-carbon-tag text-xl text-primary" />
       <!-- Show the real tag name + movie count (not a fixed "标签影片"). -->
       <h1 class="text-2xl font-bold tracking-tight">
@@ -68,7 +68,7 @@ watch(() => route.params.id, load)
       <span class="i-carbon-video block text-4xl mb-3 opacity-50" />
       {{ t('noTagMovies') }}
     </div>
-    <div v-else class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));">
+    <div v-else class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(176px, 42vw), 1fr));">
       <MovieCard v-for="m in movies" :key="m.id" :movie="m" @click="openDetail(m)" />
     </div>
 

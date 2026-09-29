@@ -265,7 +265,7 @@ async function ingest() {
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl mx-auto">
+  <div class="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
     <!-- Hero search -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold tracking-tight mb-1">{{ t('searchTitle') }}</h1>
@@ -286,7 +286,7 @@ async function ingest() {
       </div>
 
       <!-- Step progress -->
-      <div v-if="scraping || stepScrape !== 0 || stepMagnet !== 0 || stepTrailer !== 0 || stepTranslate !== 0" class="flex items-center gap-4 mt-4">
+      <div v-if="scraping || stepScrape !== 0 || stepMagnet !== 0 || stepTrailer !== 0 || stepTranslate !== 0" class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4">
         <div v-for="s in [
           { label: t('stepScrape'), state: stepScrape },
           { label: t('stepTranslate'), state: stepTranslate },

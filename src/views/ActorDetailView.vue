@@ -71,7 +71,7 @@ watch(() => route.params.id, load)
 </script>
 
 <template>
-  <div class="p-8">
+  <div class="p-4 sm:p-6 md:p-8">
     <button class="btn-ghost mb-4" @click="router.push('/actors')">
       <span class="i-carbon-arrow-left" /> {{ t('backToActors') }}
     </button>
@@ -94,8 +94,8 @@ watch(() => route.params.id, load)
           <span :class="isActorFav ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
         </button>
 
-        <div class="flex gap-6">
-          <div class="shrink-0 w-40">
+        <div class="flex flex-col md:flex-row gap-5 md:gap-6">
+          <div class="shrink-0 w-40 mx-auto md:mx-0 text-center md:text-left">
             <div class="w-40 h-40 rounded-lg overflow-hidden bg-surface2 ring-2 ring-border">
               <img v-if="actor.avatarUrl" :src="actor.avatarUrl" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
               <div v-else class="w-full h-full flex items-center justify-center text-muted">
@@ -140,7 +140,7 @@ watch(() => route.params.id, load)
           <span class="i-carbon-video block text-4xl mb-3 opacity-50" />
           {{ t('noWorks') }}
         </div>
-        <div v-else class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));">
+        <div v-else class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(176px, 42vw), 1fr));">
           <MovieCard v-for="m in movies" :key="m.id" :movie="m" @click="openDetail(m)" />
         </div>
       </section>
@@ -152,7 +152,7 @@ watch(() => route.params.id, load)
     <Teleport to="body">
       <div
         v-if="previewIdx != null"
-        class="fixed inset-0 z-[70] flex items-center justify-center p-8"
+        class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-8"
         style="background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);"
         @click="previewIdx = null"
       >

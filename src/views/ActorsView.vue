@@ -36,14 +36,14 @@ const sortedList = computed(() => {
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl mx-auto">
+  <div class="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
     <div class="mb-6">
       <h1 class="text-2xl font-bold tracking-tight mb-1">{{ t('actors') }}</h1>
       <p class="text-muted text-sm">{{ t('actorsSubtitle') }}</p>
     </div>
 
-    <div class="flex gap-2 mb-6">
-      <div class="relative flex-1 max-w-md">
+    <div class="flex flex-wrap gap-2 mb-6">
+      <div class="relative flex-1 min-w-[150px] max-w-md">
         <span class="i-carbon-search absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm" />
         <input v-model="q" class="input !pl-9" :placeholder="t('searchActor')" @keyup.enter="load" />
       </div>
@@ -59,12 +59,12 @@ const sortedList = computed(() => {
       <span class="i-carbon-user block text-4xl mb-3 opacity-50" />
       {{ t('noActors') }}
     </div>
-    <div v-else class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+    <div v-else class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(140px, 40vw), 1fr));">
       <div v-for="a in sortedList" :key="a.id" class="card cursor-pointer text-center p-4 group relative" @click="router.push(`/actors/${a.id}`)">
         <!-- favorite heart top-right -->
         <button
           class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
-          :class="favs.actorIds.includes(a.id) ? '!text-red-500' : 'text-muted opacity-0 group-hover:opacity-100'"
+          :class="favs.actorIds.includes(a.id) ? '!text-red-500' : 'text-muted opacity-0 group-hover:opacity-100 hover-reveal'"
           style="background: var(--surface-3);"
           :title="t('favorites')"
           :aria-label="t('favorites')"

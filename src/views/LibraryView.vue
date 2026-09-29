@@ -183,9 +183,9 @@ watch(() => route.params.id, () => {
 </script>
 
 <template>
-  <div class="p-8">
+  <div class="p-4 sm:p-6 md:p-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--primary-soft); color: var(--primary);">
           <span :class="isAll ? 'i-carbon-apps' : 'i-carbon-folder'" class="text-xl" />
@@ -285,8 +285,8 @@ watch(() => route.params.id, () => {
 
     <!-- Scan result -->
     <div v-if="scanResult" class="card !rounded-md mb-5 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div class="flex items-center gap-4 text-[13px] text-text-soft">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-text-soft">
           <span><span class="text-muted">{{ t('availDirs') }}</span> {{ scanResult.availableDirs }}</span>
           <span><span class="text-muted">{{ t('skipped') }}</span> {{ scanResult.skippedDirs }}</span>
           <span><span class="text-muted">{{ t('scannedFiles') }}</span> {{ scanResult.files.length }}</span>
@@ -324,7 +324,7 @@ watch(() => route.params.id, () => {
       <p class="text-muted text-sm mb-4">{{ t('noMovies') }}</p>
       <p class="text-xs text-muted">{{ t('noMoviesHint') }}</p>
     </div>
-    <div v-else class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));">
+    <div v-else class="grid gap-3 sm:gap-4" style="grid-template-columns: repeat(auto-fill, minmax(min(176px, 42vw), 1fr));">
       <MovieCard v-for="(m, i) in sortedMovies" :key="m.id" :movie="m" :eager="i < 12" @click="openDetail(m)" @contextmenu="(e: MouseEvent) => onCardContextMenu(e, m)" />
     </div>
 

@@ -92,7 +92,7 @@ async function toggleFav(e: Event) {
       <button
         v-if="movie.id != null"
         class="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white transition-all duration-150 hover:scale-110"
-        :class="isFav ? '!text-red-500 opacity-100' : 'opacity-0 group-hover:opacity-100'"
+        :class="isFav ? '!text-red-500 opacity-100' : 'opacity-0 group-hover:opacity-100 hover-reveal'"
         style="background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);"
         :title="t('favorites')"
         :aria-label="t('favorites')"

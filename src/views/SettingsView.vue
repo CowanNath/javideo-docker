@@ -156,7 +156,7 @@ async function onDelete(id: number) {
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl mx-auto">
+  <div class="p-4 sm:p-6 md:p-8 max-w-3xl mx-auto">
     <div class="mb-5">
       <h1 class="text-2xl font-bold tracking-tight">{{ t('settings') }}</h1>
       <p class="text-muted text-sm mt-0.5">{{ t('settingsSubtitle') }}</p>
@@ -206,7 +206,7 @@ async function onDelete(id: number) {
 
     <!-- 基本 -->
     <SettingSection :title="t('basic')" :desc="t('basicDesc')">
-      <div class="flex gap-4">
+      <div class="flex flex-col sm:flex-row gap-4 sm:gap-4">
         <label class="flex items-center justify-between py-1.5 flex-1">
           <span class="text-[13px] text-text-soft font-medium">{{ t('language') }}</span>
           <select :value="lang" class="input !w-[120px]" @change="changeLanguage(($event.target as HTMLSelectElement).value as Lang)">
@@ -234,7 +234,7 @@ async function onDelete(id: number) {
         <span class="text-[13px] text-text-soft font-medium">{{ t('proxyAddr') }}</span>
         <input v-model="proxyAddr" class="input" :placeholder="t('noProxyHint')" />
       </label>
-      <div class="flex gap-2 mb-3">
+      <div class="flex flex-col sm:flex-row gap-2 mb-3">
         <label class="flex flex-col gap-1.5 flex-1">
           <span class="text-[13px] text-text-soft font-medium">{{ t('proxyUser') }}</span>
           <input v-model="proxyUser" class="input" :placeholder="t('noAuth')" />
